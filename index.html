@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Swetha Billi - Cat Parade</title>
+
+<style>
+
+body{
+margin:0;
+overflow:hidden;
+font-family:Arial, sans-serif;
+background:linear-gradient(#87CEEB,#e6f7ff);
+}
+
+#game{
+position:relative;
+width:100vw;
+height:100vh;
+overflow:hidden;
+}
+
+#player{
+position:absolute;
+bottom:90px;
+font-size:44px;
+text-align:center;
+}
+
+#label{
+font-size:12px;
+font-weight:bold;
+}
+
+.cat,.dog,.obstacle{
+position:absolute;
+font-size:34px;
+}
+
+#scoreboard{
+position:absolute;
+top:10px;
+left:10px;
+background:white;
+padding:8px 12px;
+border-radius:12px;
+font-weight:bold;
+}
+
+#gameover{
+position:absolute;
+top:40%;
+width:100%;
+text-align:center;
+font-size:40px;
+display:none;
+font-weight:bold;
+}
+
+#startScreen{
+position:absolute;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.85);
+color:white;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+text-align:center;
+padding:30px;
+z-index:10;
+}
+
+#startScreen button{
+padding:14px 26px;
+font-size:18px;
+margin-top:20px;
+border:none;
+border-radius:8px;
+background:#ffcc00;
+cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+<div id="startScreen">
+
+<h1>Swetha Billi 🐱</h1>
+
+<p>
+
+Collect cats and avoid obstacles.<br><br>
+
+🐱 Collect cats to increase score<br>
+🐶 Dogs and 🗑 obstacles cost a life<br>
+❤️ You have 9 lives<br><br>
+
+Swipe LEFT / RIGHT to move<br>
+Tap to jump<br>
+
+</p>
+
+<button onclick="startGame()">Start Game</button>
+
+</div>
+
+<div id="scoreboard">
+Cats: <span id="score">0</span><br>
+Lives: <span id="lives">9</span>
+</div>
+
+<div id="player">
+👧
+<div id="label">Swetha Billi</div>
+</div>
+
+<div id="gameover">Game Over</div>
+
+</div>
+
+<script>
+
+const game=document.getElementById("game")
+const player=document.getElementById("player")
+
+const scoreText=document.getElementById("score")
+const livesText=document.getElementById("lives")
+const gameoverText=document.getElementById("gameover")
+const startScreen=document.getElementById("startScreen")
+
+let gameStarted=false
+let score=0
+let lives=9
+let cats=[]
+let objects=[]
+
+let speed=4
+let spawnRate=1200
+
+let lane=1
+let jumping=false
+let velocity=0
+
+const lanes=[window.innerWidth*0.2,window.innerWidth*0.5,window.innerWidth*0.8]
+
+player.style.left=lanes[lane]+"px"
+
+function startGame(){
+gameStarted=true
+startScreen.style.display="none"
+resetSpawner()
+}
+
+function playMeow(){
+const sound=new Audio("https://www.soundjay.com/meow/sounds/cat-meow-2.mp3")
+sound.play()
+}
+
+function spawn(){
+
+let type
+let r=Math.random()
+
+if(r<0.45) type="cat"
+else if(r<0.75) type="dog"
+else type="obstacle"
+
+let el=document.createElement("div")
+
+if(type==="cat") el.innerHTML="🐱"
+if(type==="dog") el.innerHTML="🐶"
+if(type==="obstacle") el.innerHTML="🗑️"
+
+el.className=type
+
+el.style.left=lanes[Math.floor(Math.random()*3)]+"px"
+el.style.top="-40px"
+
+game.appendChild(el)
+objects.push({el,type})
+
+}
+
+function loseLife(){
+
+lives--
+livesText.innerText=lives
+
+if(lives<=0){
+gameoverText.style.display="block"
+}
+
+}
+
+function update(){
+
+if(!gameStarted){
+requestAnimationFrame(update)
+return
+}
+
+if(lives<=0) return
+
+objects.forEach((obj,i)=>{
+
+let y=obj.el.offsetTop+speed
+obj.el.style.top=y+"px"
+
+if(y>window.innerHeight){
+obj.el.remove()
+objects.splice(i,1)
+}
+
+let px=player.offsetLeft
+let py=player.offsetTop
+
+let ox=obj.el.offsetLeft
+let oy=obj.el.offsetTop
+
+if(Math.abs(px-ox)<40 && Math.abs(py-oy)<40){
+
+if(obj.type==="cat"){
+
+score++
+scoreText.innerText=score
+
+playMeow()
+
+let cat=document.createElement("div")
+cat.innerHTML="🐱"
+cat.className="cat"
+
+game.appendChild(cat)
+cats.push(cat)
+
+if(score%5===0){
+speed+=0.6
+spawnRate*=0.9
+resetSpawner()
+}
+
+}else{
+loseLife()
+}
+
+obj.el.remove()
+objects.splice(i,1)
+
+}
+
+})
+
+cats.forEach((cat,i)=>{
+
+let targetX=i==0?player.offsetLeft:cats[i-1].offsetLeft
+let targetY=i==0?player.offsetTop:cats[i-1].offsetTop
+
+cat.style.left=(cat.offsetLeft+(targetX-cat.offsetLeft)*0.1)+"px"
+cat.style.top=(cat.offsetTop+(targetY-cat.offsetTop)*0.1)+"px"
+
+})
+
+if(jumping){
+
+velocity+=1
+
+player.style.bottom=(parseInt(player.style.bottom||90)-velocity)+"px"
+
+if(parseInt(player.style.bottom)<=90){
+player.style.bottom="90px"
+jumping=false
+velocity=0
+}
+
+}
+
+requestAnimationFrame(update)
+
+}
+
+update()
+
+let spawner
+
+function resetSpawner(){
+clearInterval(spawner)
+spawner=setInterval(spawn,spawnRate)
+}
+
+function moveLeft(){
+lane=Math.max(0,lane-1)
+player.style.left=lanes[lane]+"px"
+}
+
+function moveRight(){
+lane=Math.min(2,lane+1)
+player.style.left=lanes[lane]+"px"
+}
+
+function jump(){
+if(!jumping){
+jumping=true
+velocity=-18
+}
+}
+
+let startX=0
+
+document.addEventListener("touchstart",e=>{
+startX=e.touches[0].clientX
+})
+
+document.addEventListener("touchend",e=>{
+
+let dx=e.changedTouches[0].clientX-startX
+
+if(Math.abs(dx)<30){
+jump()
+}else if(dx>0){
+moveRight()
+}else{
+moveLeft()
+}
+
+})
+
+document.addEventListener("keydown",e=>{
+if(e.key==="ArrowLeft") moveLeft()
+if(e.key==="ArrowRight") moveRight()
+if(e.key===" ") jump()
+})
+
+</script>
+
+</body>
+</html>
